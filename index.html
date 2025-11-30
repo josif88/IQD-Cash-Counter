@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IQD Counter</title>
+    <style>
+      :root {
+        --p: #166534;
+        --r: #dc2626;
+        --g: #16a34a;
+        --b: #2563eb;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        background: #f8fafc;
+        font-size: 15px;
+      }
+      .c {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 10px;
+      }
+      h1 {
+        text-align: center;
+        color: var(--p);
+        font-size: 22px;
+        margin: 12px 0 16px;
+        font-weight: bold;
+      }
+      .card {
+        background: white;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      }
+
+      .header-row {
+        display: grid;
+        grid-template-columns: 110px 1fr 1fr;
+        gap: 10px;
+        padding: 8px 0;
+        font-weight: 600;
+        color: #444;
+        font-size: 13px;
+        text-align: center;
+        border-bottom: 2px solid var(--p);
+        margin-bottom: 8px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 110px 1fr 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .row:last-child {
+        border: none;
+      }
+
+      .label {
+        font-weight: 600;
+        color: var(--p);
+        text-align: right;
+        font-size: 15px;
+      }
+
+      input {
+        padding: 11px 8px;
+        font-size: 17px;
+        text-align: center;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+      }
+      input:focus {
+        border-color: var(--p);
+        outline: none;
+      }
+
+      #systemAmount {
+        width: 100%;
+        padding: 14px;
+        font-size: 20px;
+        font-weight: bold;
+        border: 3px solid var(--p);
+        border-radius: 12px;
+        box-sizing: border-box;
+      }
+
+      .result {
+        text-align: center;
+        padding: 20px 10px;
+        font-size: 26px;
+        font-weight: bold;
+        border-radius: 14px;
+        margin: 16px 0;
+        line-height: 1.3;
+      }
+      .exact {
+        background: #dcfce7;
+        color: var(--g);
+      }
+      .over {
+        background: #dbeafe;
+        color: var(--b);
+      }
+      .short {
+        background: #fee2e2;
+        color: var(--r);
+      }
+
+      .btn {
+        padding: 14px;
+        font-size: 16px;
+        border: none;
+        border-radius: 12px;
+        width: 100%;
+        margin: 7px 0;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .save {
+        background: var(--g);
+      }
+      .reset {
+        background: #ea580c;
+      }
+      .export {
+        background: #7c3aed;
+      }
+      .clear {
+        background: #991b1b;
+      }
+
+      .history-item {
+        padding: 12px;
+        background: #f1f5f9;
+        border-radius: 10px;
+        margin: 6px 0;
+        font-size: 14px;
+        line-height: 1.4;
+        border-left: 4px solid var(--p);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="c">
+      <h1>IQD Cash Counter</h1>
+
+      <div class="card">
+        <input
+          type="number"
+          id="systemAmount"
+          placeholder="System Amount (IQD)"
+          inputmode="numeric"
+        />
+      </div>
+
+      <div class="card">
+        <div class="header-row">
+          <div></div>
+          <div>Bundle ×100</div>
+          <div>Note</div>
+        </div>
+        <div id="denoms"></div>
+      </div>
+
+      <div class="card">
+        <div id="result" class="result">Enter amounts...</div>
+        <button class="btn save" onclick="saveCount()">Save Count</button>
+        <button class="btn reset" onclick="resetAll()">Reset All</button>
+        <button class="btn export" onclick="exportToExcel()">
+          Export to Excel
+        </button>
+        <button class="btn clear" onclick="clearHistory()">
+          Clear History
+        </button>
+      </div>
+
+      <div class="card">
+        <b>Latest 25 Counts</b>
+        <div id="history"></div>
+      </div>
+    </div>
+
+    <script>
+      const denominations = [50000, 25000, 10000, 5000, 1000, 500, 250];
+      const key = "iqd_final";
+      let history = JSON.parse(localStorage.getItem(key) || "[]");
+
+      // Build denomination rows
+      const container = document.getElementById("denoms");
+      denominations.forEach((d) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+      <div class="label">${d.toLocaleString()} IQD</div>
+      <input type="number" id="b${d}" value="0" min="0">
+      <input type="number" id="l${d}" value="0" min="0">
+    `;
+        container.appendChild(row);
+      });
+
+      function format(num) {
+        return Number(num).toLocaleString("en-US");
+      }
+
+      function calc() {
+        let total = 0;
+        denominations.forEach((d) => {
+          const b = parseInt(document.getElementById(`b${d}`).value) || 0;
+          const l = parseInt(document.getElementById(`l${d}`).value) || 0;
+          total += d * 100 * b + d * l;
+        });
+        const sys =
+          parseInt(document.getElementById("systemAmount").value) || 0;
+        const diff = total - sys;
+        const res = document.getElementById("result");
+
+        if (diff === 0) {
+          res.className = "result exact";
+          res.textContent = "EXACT MATCH";
+        } else if (diff > 0) {
+          res.className = "result over";
+          res.innerHTML = `OVER<br>${format(diff)} IQD`;
+        } else {
+          res.className = "result short";
+          res.innerHTML = `SHORT<br>${format(Math.abs(diff))} IQD`;
+        }
+      }
+
+      function saveCount() {
+        let total = 0;
+        denominations.forEach((d) => {
+          const b = parseInt(document.getElementById(`b${d}`).value) || 0;
+          const l = parseInt(document.getElementById(`l${d}`).value) || 0;
+          total += d * 100 * b + d * l;
+        });
+        const sys =
+          parseInt(document.getElementById("systemAmount").value) || 0;
+        const now = new Date().toLocaleString("en-GB");
+
+        history.unshift({
+          dateTime: now,
+          physical: total,
+          system: sys,
+          diff: total - sys,
+        });
+        if (history.length > 200) history.pop();
+        localStorage.setItem(key, JSON.stringify(history));
+        loadHistory();
+        alert("Saved at " + now);
+      }
+
+      function loadHistory() {
+        const h = document.getElementById("history");
+        const list = history.slice(0, 25);
+        if (list.length === 0) {
+          h.innerHTML =
+            '<div style="text-align:center;color:#999;padding:20px">No records yet</div>';
+          return;
+        }
+        h.innerHTML = list
+          .map(
+            (x) => `
+      <div class="history-item">
+        <b>${x.dateTime}</b><br>
+        ${format(x.physical)} | ${format(x.system)}
+        → <span style="color:${
+          x.diff == 0 ? "green" : x.diff > 0 ? "#2563eb" : "#dc2626"
+        }">
+          ${
+            x.diff == 0
+              ? "EXACT"
+              : x.diff > 0
+              ? "+" + format(x.diff)
+              : format(x.diff)
+          } IQD
+        </span>
+      </div>
+    `
+          )
+          .join("");
+      }
+
+      function resetAll() {
+        if (confirm("Reset all fields?")) {
+          document
+            .querySelectorAll("input[type=number]")
+            .forEach((i) => (i.value = ""));
+          calc();
+        }
+      }
+
+      function clearHistory() {
+        if (confirm("Delete all history permanently?")) {
+          history = [];
+          localStorage.removeItem(key);
+          loadHistory();
+        }
+      }
+
+      function exportToExcel() {
+        if (history.length === 0) return alert("No data to export");
+        let csv =
+          "Date & Time,Physical Count,System Amount,Difference,Status\n";
+        history.forEach((h) => {
+          const status = h.diff === 0 ? "EXACT" : h.diff > 0 ? "OVER" : "SHORT";
+          csv += `"${h.dateTime}",${h.physical},${h.system},${h.diff},${status}\n`;
+        });
+        const blob = new Blob(["\uFEFF" + csv], {
+          type: "text/csv;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `IQD_Cash_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // Live calculation
+      document
+        .querySelectorAll("input")
+        .forEach((i) => i.addEventListener("input", calc));
+      calc();
+      loadHistory();
+    </script>
+  </body>
+</html>
