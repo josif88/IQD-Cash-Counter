@@ -211,15 +211,26 @@
         return Number(num).toLocaleString("en-US");
       }
 
+      function formatInput(input) {
+        let value = input.value.replace(/,/g, "");
+        if (value && !isNaN(value)) {
+          input.value = Number(value).toLocaleString("en-US");
+        }
+      }
+
+      function unformatInput(input) {
+        input.value = input.value.replace(/,/g, "");
+      }
+
       function calc() {
         let total = 0;
         denominations.forEach((d) => {
-          const b = parseInt(document.getElementById(`b${d}`).value) || 0;
-          const l = parseInt(document.getElementById(`l${d}`).value) || 0;
+          const b = parseInt(document.getElementById(`b${d}`).value.replace(/,/g, "")) || 0;
+          const l = parseInt(document.getElementById(`l${d}`).value.replace(/,/g, "")) || 0;
           total += d * 100 * b + d * l;
         });
         const sys =
-          parseInt(document.getElementById("systemAmount").value) || 0;
+          parseInt(document.getElementById("systemAmount").value.replace(/,/g, "")) || 0;
         const diff = total - sys;
         const res = document.getElementById("result");
 
@@ -238,12 +249,12 @@
       function saveCount() {
         let total = 0;
         denominations.forEach((d) => {
-          const b = parseInt(document.getElementById(`b${d}`).value) || 0;
-          const l = parseInt(document.getElementById(`l${d}`).value) || 0;
+          const b = parseInt(document.getElementById(`b${d}`).value.replace(/,/g, "")) || 0;
+          const l = parseInt(document.getElementById(`l${d}`).value.replace(/,/g, "")) || 0;
           total += d * 100 * b + d * l;
         });
         const sys =
-          parseInt(document.getElementById("systemAmount").value) || 0;
+          parseInt(document.getElementById("systemAmount").value.replace(/,/g, "")) || 0;
         const now = new Date().toLocaleString("en-GB");
 
         history.unshift({
@@ -325,10 +336,14 @@
         URL.revokeObjectURL(url);
       }
 
-      // Live calculation
+      // Live calculation and formatting
       document
         .querySelectorAll("input")
-        .forEach((i) => i.addEventListener("input", calc));
+        .forEach((i) => {
+          i.addEventListener("focus", () => unformatInput(i));
+          i.addEventListener("blur", () => formatInput(i));
+          i.addEventListener("input", calc);
+        });
       calc();
       loadHistory();
     </script>
